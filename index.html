@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="th" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>CardPay - ติดตามการจ่ายบัตรเครดิต</title>
+  
+  <!-- PWA Settings -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="CardPay">
+  <link rel="apple-touch-icon" href="https://img.icons8.com/color/180/000000/credit-card-front.png">
+  <link rel="icon" type="image/png" href="https://img.icons8.com/color/96/000000/credit-card-front.png">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Google Font: Kanit / Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Kanit', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Kanit', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    
+    /* Smooth Transitions */
+    .card-transition {
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    /* Glassmorphic Effects */
+    .glass-card {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .dark .glass-card {
+      background: rgba(30, 41, 59, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    /* Custom Checkbox Toggle Animation */
+    .toggle-checkbox:checked + .toggle-label {
+      background-color: #10B981;
+    }
+    .toggle-checkbox:checked + .toggle-label .toggle-dot {
+      transform: translateX(100%);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    .dark ::-webkit-scrollbar-thumb {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-full flex flex-col antialiased transition-colors duration-200">
+
+  <!-- Top App Bar -->
+  <header class="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center space-x-2">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+        <i class="fa-solid font-bold fa-credit-card text-lg"></i>
+      </div>
+      <div>
+        <h1 class="text-lg font-bold leading-none tracking-tight">CardPay</h1>
+        <p class="text-[10px] text-slate-500 dark:text-slate-400 font-normal">บันทึก & เตือนจ่ายบัตรเครดิต</p>
+      </div>
+    </div>
+    
+    <div class="flex items-center space-x-1.5">
+      <!-- Dark Mode Toggle Button -->
+      <button id="themeToggleBtn" onclick="toggleTheme()" class="w-9 h-9 rounded-full flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition">
+        <i id="themeIcon" class="fa-solid fa-moon text-lg"></i>
+      </button>
+
+      <!-- Install PWA Hint Button -->
+      <button onclick="showPwaModal()" class="w-9 h-9 rounded-full flex items-center justify-center text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-800 transition" title="เพิ่มลงหน้าจอหลัก">
+        <i class="fa-solid fa-arrow-down-to-square text-lg"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-md w-full mx-auto px-4 py-4 space-y-4 pb-24">
+
+    <!-- Summary Overview Card -->
+    <section class="rounded-2xl p-5 bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 text-white shadow-xl shadow-indigo-500/20 relative overflow-hidden">
+      <!-- Decorative Background Circles -->
+      <div class="absolute -right-6 -top-6 w-28 h-28 rounded-full bg-white/10 blur-xl pointer-events-none"></div>
+      <div class="absolute -left-6 -bottom-6 w-32 h-32 rounded-full bg-purple-500/20 blur-xl pointer-events-none"></div>
+
+      <div class="flex justify-between items-start mb-3 relative z-10">
+        <div>
+          <span class="text-xs font-light text-indigo-200 uppercase tracking-wider">ยอดรวมประจำเดือนนี้</span>
+          <div class="text-3xl font-extrabold tracking-tight mt-0.5" id="totalAmount">฿0.00</div>
+        </div>
+        <button onclick="openModal()" class="px-3 py-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-xl text-xs font-medium text-white transition flex items-center gap-1.5 active:scale-95">
+          <i class="fa-solid fa-plus text-xs"></i> เพิ่มบัตร
+        </button>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="mt-4 space-y-1.5 relative z-10">
+        <div class="flex justify-between text-xs font-light text-indigo-100">
+          <span>ความคืบหน้าการชำระเงิน</span>
+          <span id="paidPercentText">0%</span>
+        </div>
+        <div class="w-full h-2.5 bg-black/20 rounded-full overflow-hidden backdrop-blur-sm p-0.5">
+          <div id="progressBar" class="h-full bg-gradient-to-r from-emerald-400 to-teal-300 rounded-full transition-all duration-500" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- Detail Badges -->
+      <div class="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-white/15 relative z-10">
+        <div class="bg-black/15 backdrop-blur-sm rounded-xl p-2.5 flex items-center space-x-2.5">
+          <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-check text-xs"></i>
+          </div>
+          <div class="overflow-hidden">
+            <p class="text-[10px] text-indigo-200">จ่ายแล้ว</p>
+            <p class="text-xs font-semibold truncate text-emerald-300" id="paidAmount">฿0.00</p>
+          </div>
+        </div>
+
+        <div class="bg-black/15 backdrop-blur-sm rounded-xl p-2.5 flex items-center space-x-2.5">
+          <div class="w-7 h-7 rounded-lg bg-rose-500/20 text-rose-300 flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-clock text-xs"></i>
+          </div>
+          <div class="overflow-hidden">
+            <p class="text-[10px] text-indigo-200">ยังไม่จ่าย</p>
+            <p class="text-xs font-semibold truncate text-rose-300" id="unpaidAmount">฿0.00</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Filter & Action Tools -->
+    <div class="flex items-center justify-between gap-2 pt-1">
+      <div class="flex items-center space-x-1 bg-slate-200/80 dark:bg-slate-800 p-1 rounded-xl text-xs">
+        <button onclick="setFilter('all')" id="filter-all" class="px-3 py-1.5 rounded-lg font-medium transition active-filter bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400">ทั้งหมด</button>
+        <button onclick="setFilter('unpaid')" id="filter-unpaid" class="px-3 py-1.5 rounded-lg font-medium transition text-slate-600 dark:text-slate-400 hover:text-slate-900">ยังไม่จ่าย</button>
+        <button onclick="setFilter('paid')" id="filter-paid" class="px-3 py-1.5 rounded-lg font-medium transition text-slate-600 dark:text-slate-400 hover:text-slate-900">จ่ายแล้ว</button>
+      </div>
+
+      <button onclick="confirmResetAll()" class="px-2.5 py-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 flex items-center gap-1 transition">
+        <i class="fa-solid fa-rotate-left"></i> รีเซ็ตเดือนใหม่
+      </button>
+    </div>
+
+    <!-- Credit Cards List Container -->
+    <section id="cardList" class="space-y-3">
+      <!-- Cards rendered via JS -->
+    </section>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="hidden text-center py-12 px-4 bg-white dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
+      <div class="w-16 h-16 bg-indigo-50 dark:bg-slate-800 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">
+        <i class="fa-solid fa-credit-card"></i>
+      </div>
+      <h3 class="font-semibold text-slate-700 dark:text-slate-200">ยังไม่มีรายการบัตรเครดิต</h3>
+      <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs mx-auto">กดปุ่ม "เพิ่มบัตร" ด้านบนเพื่อเริ่มบันทึกการชำระเงินของคุณ</p>
+      <button onclick="openModal()" class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-medium shadow-md shadow-indigo-500/20 active:scale-95 transition">
+        + เพิ่มบัตรใบแรก
+      </button>
+    </div>
+
+  </main>
+
+  <!-- Add/Edit Modal Sheet -->
+  <div id="cardModal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300">
+    <div class="bg-white dark:bg-slate-800 w-full max-w-md rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl transform translate-y-full sm:translate-y-0 transition-transform duration-300 max-h-[90vh] overflow-y-auto">
+      
+      <div class="flex justify-between items-center pb-3 mb-4 border-b border-slate-100 dark:border-slate-700">
+        <h3 class="text-base font-bold text-slate-800 dark:text-slate-100" id="modalTitle">เพิ่มบัตรเครดิต</h3>
+        <button onclick="closeModal()" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="cardForm" onsubmit="handleFormSubmit(event)" class="space-y-4">
+        <input type="hidden" id="cardId">
+
+        <!-- Card Name -->
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">ชื่อบัตรเครดิต *</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+              <i class="fa-solid fa-credit-card"></i>
+            </span>
+            <input type="text" id="cardName" required placeholder="เช่น KTC Platinum, SCB Beyond" 
+              class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white">
+          </div>
+        </div>
+
+        <!-- Card Color Gradient Select -->
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">ธีมสีบัตร</label>
+          <div class="flex items-center gap-2 overflow-x-auto pb-1" id="colorPickerOptions">
+            <!-- Options populated by JS -->
+          </div>
+          <input type="hidden" id="cardTheme" value="indigo">
+        </div>
+
+        <!-- Amount & Due Day -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">ยอดชำระ (บาท) *</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 text-xs">฿</span>
+              <input type="number" id="cardAmount" required step="0.01" min="0" placeholder="0.00"
+                class="w-full pl-7 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">วันครบกำหนด (วันที่) *</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                <i class="fa-regular fa-calendar text-xs"></i>
+              </span>
+              <input type="number" id="cardDueDay" required min="1" max="31" placeholder="1-31"
+                class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white">
+            </div>
+          </div>
+        </div>
+
+        <!-- Note -->
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">หมายเหตุ (ถ้ามี)</label>
+          <input type="text" id="cardNote" placeholder="เช่น หักผ่านบัญชีอัตโนมัติ, รับเครดิตเงินคืน" 
+            class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white">
+        </div>
+
+        <!-- Submit Buttons -->
+        <div class="pt-2 flex gap-2">
+          <button type="button" onclick="closeModal()" class="w-1/3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+            ยกเลิก
+          </button>
+          <button type="submit" class="w-2/3 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium shadow-md shadow-indigo-500/20 active:scale-95 transition">
+            บันทึกข้อมูล
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Reset Confirmation Modal -->
+  <div id="resetConfirmModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-200">
+    <div class="bg-white dark:bg-slate-800 w-full max-w-xs rounded-2xl p-5 text-center shadow-2xl space-y-3">
+      <div class="w-12 h-12 bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 rounded-full flex items-center justify-center mx-auto text-xl">
+        <i class="fa-solid fa-rotate-left"></i>
+      </div>
+      <h4 class="font-bold text-slate-800 dark:text-slate-100">รีเซ็ตสถานะประจำเดือน?</h4>
+      <p class="text-xs text-slate-500 dark:text-slate-400">สถานะการชำระเงินของบัตรทุกใบจะถูกเปลี่ยนกลับเป็น <span class="text-rose-500 font-semibold">"ยังไม่จ่าย"</span> เพื่อเริ่มเดือนใหม่</p>
+      <div class="flex gap-2 pt-2">
+        <button onclick="closeResetModal()" class="w-1/2 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300">ยกเลิก</button>
+        <button onclick="executeResetAll()" class="w-1/2 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium shadow-md shadow-amber-500/20">ยืนยันรีเซ็ต</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PWA / Add to Home Screen Instructions Modal -->
+  <div id="pwaModal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-200">
+    <div class="bg-white dark:bg-slate-800 w-full max-w-sm rounded-2xl p-5 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
+        <div class="flex items-center space-x-2">
+          <i class="fa-solid fa-mobile-screen text-indigo-600 text-lg"></i>
+          <h4 class="font-bold text-slate-800 dark:text-slate-100 text-sm">เพิ่มแอปไปยังหน้าจอหลัก</h4>
+        </div>
+        <button onclick="closePwaModal()" class="text-slate-400 hover:text-slate-600 text-sm"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      
+      <div class="space-y-3 text-xs text-slate-600 dark:text-slate-300">
+        <div class="p-3 bg-indigo-50 dark:bg-slate-700/50 rounded-xl space-y-1">
+          <p class="font-semibold text-indigo-700 dark:text-indigo-300">📲 บน iOS (Safari):</p>
+          <p>1. แตะปุ่ม <i class="fa-solid fa-share-from-square"></i> (Share / แชร์) ที่แถบเมนูด้านล่าง</p>
+          <p>2. เลื่อนลงแล้วเลือก <span class="font-semibold text-slate-800 dark:text-slate-100">"เพิ่มไปยังหน้าจอหลัก" (Add to Home Screen)</span></p>
+        </div>
+
+        <div class="p-3 bg-emerald-50 dark:bg-slate-700/50 rounded-xl space-y-1">
+          <p class="font-semibold text-emerald-700 dark:text-emerald-300">🤖 บน Android (Chrome):</p>
+          <p>1. แตะไอคอนจุด 3 จุด <i class="fa-solid fa-ellipsis-vertical"></i> มุมขวาบน</p>
+          <p>2. เลือก <span class="font-semibold text-slate-800 dark:text-slate-100">"เพิ่มลงในหน้าจอหลัก" หรือ "ติดตั้งแอป"</span></p>
+        </div>
+      </div>
+
+      <button onclick="closePwaModal()" class="w-full py-2 bg-indigo-600 text-white text-xs font-medium rounded-xl">รับทราบ</button>
+    </div>
+  </div>
+
+  <!-- Custom Alert Toast -->
+  <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 bg-slate-900/90 text-white text-xs py-2.5 px-4 rounded-full shadow-lg backdrop-blur-md transition-all duration-300 opacity-0 pointer-events-none flex items-center space-x-2">
+    <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
+    <span id="toastMsg">บันทึกข้อมูลเรียบร้อย</span>
+  </div>
+
+  <script>
+    // Theme Color Palettes for Credit Cards
+    const COLOR_THEMES = [
+      { id: 'indigo', name: 'Indigo', bg: 'from-slate-800 to-indigo-900', border: 'border-indigo-500/30', badge: 'bg-indigo-500/20 text-indigo-300' },
+      { id: 'emerald', name: 'Emerald', bg: 'from-slate-800 to-emerald-900', border: 'border-emerald-500/30', badge: 'bg-emerald-500/20 text-emerald-300' },
+      { id: 'rose', name: 'Rose', bg: 'from-slate-800 to-rose-900', border: 'border-rose-500/30', badge: 'bg-rose-500/20 text-rose-300' },
+      { id: 'amber', name: 'Gold', bg: 'from-slate-800 to-amber-900', border: 'border-amber-500/30', badge: 'bg-amber-500/20 text-amber-300' },
+      { id: 'purple', name: 'Purple', bg: 'from-slate-800 to-purple-900', border: 'border-purple-500/30', badge: 'bg-purple-500/20 text-purple-300' },
+      { id: 'dark', name: 'Midnight', bg: 'from-gray-900 to-slate-800', border: 'border-slate-700', badge: 'bg-slate-700 text-slate-300' }
+    ];
+
+    // Default Sample Cards Data
+    const DEFAULT_CARDS = [
+      { id: '1', name: 'KTC Platinum', amount: 12500, dueDay: 10, paid: false, note: 'ชำระผ่าน App KTC', theme: 'indigo' },
+      { id: '2', name: 'SCB Beyond', amount: 8200, dueDay: 15, paid: true, note: 'หักผ่านบัญชีอัตโนมัติ', theme: 'purple' },
+      { id: '3', name: 'KBANK Shopee', amount: 4500, dueDay: 25, paid: false, note: '', theme: 'emerald' }
+    ];
+
+    let cards = [];
+    let currentFilter = 'all';
+
+    // App Initialization
+    window.onload = function() {
+      loadTheme();
+      loadCards();
+      renderColorPicker();
+      renderApp();
+    };
+
+    // Dark Mode Handling
+    function loadTheme() {
+      const isDark = localStorage.getItem('cardpay_theme') === 'dark' || 
+                     (!('cardpay_theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+        document.getElementById('themeIcon').className = 'fa-solid fa-sun text-amber-400 text-lg';
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.getElementById('themeIcon').className = 'fa-solid fa-moon text-slate-600 text-lg';
+      }
+    }
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('cardpay_theme', isDark ? 'dark' : 'light');
+      document.getElementById('themeIcon').className = isDark ? 
+        'fa-solid fa-sun text-amber-400 text-lg' : 'fa-solid fa-moon text-slate-600 text-lg';
+    }
+
+    // LocalStorage Data Management
+    function loadCards() {
+      const saved = localStorage.getItem('cardpay_cards');
+      if (saved) {
+        try {
+          cards = JSON.parse(saved);
+        } catch (e) {
+          cards = DEFAULT_CARDS;
+        }
+      } else {
+        cards = DEFAULT_CARDS;
+        saveCards();
+      }
+    }
+
+    function saveCards() {
+      localStorage.setItem('cardpay_cards', JSON.stringify(cards));
+      renderApp();
+    }
+
+    // Render Main Application UI
+    function renderApp() {
+      renderSummary();
+      renderCardList();
+    }
+
+    // Calculate Summary Totals & Progress
+    function renderSummary() {
+      const total = cards.reduce((sum, c) => sum + Number(c.amount), 0);
+      const paid = cards.filter(c => c.paid).reduce((sum, c) => sum + Number(c.amount), 0);
+      const unpaid = total - paid;
+      const percent = total > 0 ? Math.round((paid / total) * 100) : 0;
+
+      document.getElementById('totalAmount').innerText = '฿' + total.toLocaleString('th-TH', {minimumFractionDigits: 2});
+      document.getElementById('paidAmount').innerText = '฿' + paid.toLocaleString('th-TH', {minimumFractionDigits: 2});
+      document.getElementById('unpaidAmount').innerText = '฿' + unpaid.toLocaleString('th-TH', {minimumFractionDigits: 2});
+      document.getElementById('paidPercentText').innerText = percent + '%';
+      document.getElementById('progressBar').style.width = percent + '%';
+    }
+
+    // Helper: Calculate Due Status
+    function getDueStatus(dueDay, isPaid) {
+      if (isPaid) {
+        return { label: 'ชำระแล้ว', class: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20', icon: 'fa-circle-check' };
+      }
+
+      const today = new Date();
+      const currentDay = today.getDate();
+      const diff = dueDay - currentDay;
+
+      if (diff < 0) {
+        return { label: `เลยกำหนด ${Math.abs(diff)} วัน`, class: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 font-semibold', icon: 'fa-circle-exclamation' };
+      } else if (diff === 0) {
+        return { label: 'ครบกำหนดวันนี้!', class: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 font-semibold', icon: 'fa-clock' };
+      } else if (diff <= 3) {
+        return { label: `เหลือเวลาอีก ${diff} วัน`, class: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20', icon: 'fa-hourglass-half' };
+      } else {
+        return { label: `ครบกำหนดวันที่ ${dueDay}`, class: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700', icon: 'fa-calendar' };
+      }
+    }
+
+    // Render Cards
+    function renderCardList() {
+      const container = document.getElementById('cardList');
+      const emptyState = document.getElementById('emptyState');
+      
+      let filtered = cards;
+      if (currentFilter === 'paid') filtered = cards.filter(c => c.paid);
+      if (currentFilter === 'unpaid') filtered = cards.filter(c => !c.paid);
+
+      if (filtered.length === 0) {
+        container.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+      
+      emptyState.classList.add('hidden');
+
+      container.innerHTML = filtered.map(card => {
+        const theme = COLOR_THEMES.find(t => t.id === card.theme) || COLOR_THEMES[0];
+        const status = getDueStatus(card.dueDay, card.paid);
+
+        return `
+          <div class="glass-card rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md card-transition relative overflow-hidden">
+            
+            <div class="flex items-start justify-between gap-3">
+              <!-- Left Info -->
+              <div class="flex items-start space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br ${theme.bg} text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                  <i class="fa-solid fa-credit-card text-base"></i>
+                </div>
+                <div>
+                  <h4 class="font-bold text-slate-800 dark:text-slate-100 text-sm leading-tight">${escapeHtml(card.name)}</h4>
+                  <div class="text-xs font-semibold text-slate-900 dark:text-white mt-1">
+                    ฿${Number(card.amount).toLocaleString('th-TH', {minimumFractionDigits: 2})}
+                  </div>
+                  ${card.note ? `<p class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 truncate max-w-[170px]"><i class="fa-regular fa-note-sticky text-[10px]"></i> ${escapeHtml(card.note)}</p>` : ''}
+                </div>
+              </div>
+
+              <!-- Right Actions & Toggle -->
+              <div class="flex flex-col items-end space-y-2">
+                <!-- Toggle Checkbox Switch -->
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" class="sr-only toggle-checkbox" ${card.paid ? 'checked' : ''} onchange="toggleCardPaid('${card.id}')">
+                  <div class="w-11 h-6 bg-slate-300 dark:bg-slate-700 rounded-full toggle-label transition-colors duration-200 p-0.5 flex items-center">
+                    <div class="w-5 h-5 bg-white rounded-full shadow-md transform toggle-dot transition-transform duration-200 flex items-center justify-center text-[10px] text-slate-400">
+                      ${card.paid ? '<i class="fa-solid fa-check text-emerald-500"></i>' : ''}
+                    </div>
+                  </div>
+                </label>
+
+                <span class="text-[10px] ${card.paid ? 'text-emerald-500 font-medium' : 'text-slate-400'}">
+                  ${card.paid ? 'จ่ายแล้ว' : 'ยังไม่จ่าย'}
+                </span>
+              </div>
+            </div>
+
+            <!-- Card Footer: Status Badge & Edit Options -->
+            <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] border ${status.class}">
+                <i class="fa-solid ${status.icon}"></i> ${status.label}
+              </span>
+
+              <div class="flex items-center space-x-1">
+                <button onclick="editCard('${card.id}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-800 flex items-center justify-center transition">
+                  <i class="fa-solid fa-pen text-xs"></i>
+                </button>
+                <button onclick="deleteCard('${card.id}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 flex items-center justify-center transition">
+                  <i class="fa-solid fa-trash text-xs"></i>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Toggle Single Card Status
+    function toggleCardPaid(id) {
+      const card = cards.find(c => c.id === id);
+      if (card) {
+        card.paid = !card.paid;
+        saveCards();
+        showToast(card.paid ? `ชำระ ${card.name} แล้ว` : `ยกเลิกการชำระ ${card.name}`);
+      }
+    }
+
+    // Filter Switcher
+    function setFilter(type) {
+      currentFilter = type;
+      ['all', 'unpaid', 'paid'].forEach(f => {
+        const btn = document.getElementById(`filter-${f}`);
+        if (f === type) {
+          btn.className = 'px-3 py-1.5 rounded-lg font-medium transition active-filter bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400';
+        } else {
+          btn.className = 'px-3 py-1.5 rounded-lg font-medium transition text-slate-600 dark:text-slate-400 hover:text-slate-900';
+        }
+      });
+      renderCardList();
+    }
+
+    // Render Color Picker Options
+    function renderColorPicker() {
+      const container = document.getElementById('colorPickerOptions');
+      container.innerHTML = COLOR_THEMES.map(theme => `
+        <button type="button" onclick="selectTheme('${theme.id}')" id="theme-btn-${theme.id}" 
+          class="w-8 h-8 rounded-full bg-gradient-to-br ${theme.bg} shrink-0 border-2 transition-all duration-200 flex items-center justify-center text-white text-xs">
+          <i class="fa-solid fa-check opacity-0 check-icon"></i>
+        </button>
+      `).join('');
+      selectTheme('indigo');
+    }
+
+    function selectTheme(themeId) {
+      document.getElementById('cardTheme').value = themeId;
+      COLOR_THEMES.forEach(t => {
+        const btn = document.getElementById(`theme-btn-${t.id}`);
+        const icon = btn.querySelector('.check-icon');
+        if (t.id === themeId) {
+          btn.classList.add('border-indigo-500', 'scale-110');
+          btn.classList.remove('border-transparent');
+          icon.classList.remove('opacity-0');
+        } else {
+          btn.classList.remove('border-indigo-500', 'scale-110');
+          btn.classList.add('border-transparent');
+          icon.classList.add('opacity-0');
+        }
+      });
+    }
+
+    // Modal Control Functions
+    function openModal(card = null) {
+      const modal = document.getElementById('cardModal');
+      const form = document.getElementById('cardForm');
+      
+      if (card) {
+        document.getElementById('modalTitle').innerText = 'แก้ไขบัตรเครดิต';
+        document.getElementById('cardId').value = card.id;
+        document.getElementById('cardName').value = card.name;
+        document.getElementById('cardAmount').value = card.amount;
+        document.getElementById('cardDueDay').value = card.dueDay;
+        document.getElementById('cardNote').value = card.note || '';
+        selectTheme(card.theme || 'indigo');
+      } else {
+        document.getElementById('modalTitle').innerText = 'เพิ่มบัตรเครดิตใหม่';
+        form.reset();
+        document.getElementById('cardId').value = '';
+        selectTheme('indigo');
+      }
+
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+      const modalBox = modal.children[0];
+      modalBox.classList.remove('translate-y-full');
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('cardModal');
+      const modalBox = modal.children[0];
+      modalBox.classList.add('translate-y-full');
+      setTimeout(() => {
+        modal.classList.add('opacity-0', 'pointer-events-none');
+      }, 200);
+    }
+
+    // Save Card (Create or Update)
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      
+      const id = document.getElementById('cardId').value;
+      const name = document.getElementById('cardName').value.trim();
+      const amount = parseFloat(document.getElementById('cardAmount').value);
+      const dueDay = parseInt(document.getElementById('cardDueDay').value);
+      const note = document.getElementById('cardNote').value.trim();
+      const theme = document.getElementById('cardTheme').value;
+
+      if (!name || isNaN(amount) || isNaN(dueDay)) return;
+
+      if (id) {
+        // Update Existing
+        const index = cards.findIndex(c => c.id === id);
+        if (index !== -1) {
+          cards[index] = { ...cards[index], name, amount, dueDay, note, theme };
+          showToast('แก้ไขข้อมูลบัตรเรียบร้อย');
+        }
+      } else {
+        // Add New
+        const newCard = {
+          id: Date.now().toString(),
+          name,
+          amount,
+          dueDay,
+          paid: false,
+          note,
+          theme
+        };
+        cards.push(newCard);
+        showToast('เพิ่มบัตรเครดิตใหม่แล้ว');
+      }
+
+      saveCards();
+      closeModal();
+    }
+
+    // Edit Card Handler
+    function editCard(id) {
+      const card = cards.find(c => c.id === id);
+      if (card) openModal(card);
+    }
+
+    // Delete Card Handler
+    function deleteCard(id) {
+      const card = cards.find(c => c.id === id);
+      if (card && confirm(`คุณต้องการลบบัตร "${card.name}" ใช่หรือไม่?`)) {
+        cards = cards.filter(c => c.id !== id);
+        saveCards();
+        showToast('ลบบัตรเรียบร้อยแล้ว');
+      }
+    }
+
+    // Reset All Monthly Status
+    function confirmResetAll() {
+      const modal = document.getElementById('resetConfirmModal');
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+    }
+
+    function closeResetModal() {
+      const modal = document.getElementById('resetConfirmModal');
+      modal.classList.add('opacity-0', 'pointer-events-none');
+    }
+
+    function executeResetAll() {
+      cards = cards.map(c => ({ ...c, paid: false }));
+      saveCards();
+      closeResetModal();
+      showToast('รีเซ็ตสถานะประจำเดือนเรียบร้อย');
+    }
+
+    // PWA Modal
+    function showPwaModal() {
+      const modal = document.getElementById('pwaModal');
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+    }
+
+    function closePwaModal() {
+      const modal = document.getElementById('pwaModal');
+      modal.classList.add('opacity-0', 'pointer-events-none');
+    }
+
+    // Toast Notification
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastMsg').innerText = msg;
+      toast.classList.remove('opacity-0', 'pointer-events-none');
+      toast.classList.add('translate-y-0');
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'pointer-events-none');
+      }, 2500);
+    }
+
+    // Utility: HTML Escape
+    function escapeHtml(str) {
+      return str.replace(/[&<>"']/g, function(m) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+      });
+    }
+  </script>
+</body>
+</html>
